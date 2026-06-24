@@ -1,0 +1,1 @@
+"""Climate Detective application package."""

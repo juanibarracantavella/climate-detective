@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A plain-language view of your home's recent climate.">
+    <title>Climate Detective</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">Home Assistant field notes</p>
+        <h1>Climate Detective</h1>
+        <p class="intro">Choose a window and get the short version of what changed at home.</p>
+      </header>
+
+      <section class="panel controls" aria-labelledby="query-heading">
+        <h2 id="query-heading">Pick a time period</h2>
+        <form id="summary-form">
+          <label for="period">When should we investigate?</label>
+          <div class="form-row">
+            <select id="period" name="period">
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="last_7_days">Last 7 days</option>
+            </select>
+            <button type="submit">Investigate</button>
+          </div>
+        </form>
+      </section>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <section id="report" class="report" hidden>
+        <article class="panel summary-card">
+          <p class="eyebrow">Detective's summary</p>
+          <h2 id="period-heading">Report</h2>
+          <p id="summary-text" class="summary-text"></p>
+        </article>
+
+        <section aria-labelledby="facts-heading">
+          <h2 id="facts-heading">The evidence</h2>
+          <div id="facts" class="fact-grid"></div>
+        </section>
+
+        <section id="events-section" aria-labelledby="events-heading">
+          <h2 id="events-heading">Notable changes</h2>
+          <ul id="events" class="event-list"></ul>
+        </section>
+
+        <aside id="warnings" class="warnings" aria-labelledby="warnings-heading" hidden>
+          <h2 id="warnings-heading">Data notes</h2>
+          <ul id="warning-list"></ul>
+        </aside>
+      </section>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>
+
