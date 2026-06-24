@@ -9,7 +9,7 @@ The pipeline is:
 1. Resolve a requested period in the home's timezone.
 2. Fetch allowlisted temperature, humidity, and power/energy entities from Home Assistant.
 3. Normalize and reduce the time series deterministically.
-4. Calculate statistics and detect notable events.
+4. Calculate statistics and detect sensor events.
 5. Send only those derived facts to an LLM served by a Nebius Serverless AI endpoint.
 6. Return the summary, facts, interval, and warnings to a vanilla JavaScript UI.
 
@@ -22,8 +22,10 @@ The first vertical slice is implemented and working:
 - FastAPI serves both the API and the vanilla JavaScript frontend.
 - `GET /api/home-sensors` has been exercised against the real Home Assistant instance and successfully returns current readings for all seven allowlisted sensors.
 - `GET /api/summary?period=today|yesterday|last_7_days` fetches Home Assistant history for the configured indoor temperature, indoor humidity, and total power entities, performs deterministic analysis, and returns a summary.
+- Temperature and humidity events are emitted as separate rise/drop timelines with start, end, and signed change. Significant swings use threshold-based turning points; calmer series are split into up to three periods around the overall low and high. The two sensor timelines may overlap because they describe independent measurements.
+- The frontend displays each event's amount and full start/end interval.
 - The Nebius adapter calls an OpenAI-compatible `/v1/chat/completions` endpoint when configured. With no key, or on an inference failure, it uses a deterministic local text fallback.
-- The last verification run passed Ruff formatting/linting and all 16 tests.
+- The last verification run passed Ruff formatting/linting and all 20 tests.
 - The implementation is currently an uncommitted worktree with many new files. Preserve it; do not clean or reset untracked files.
 
 Important distinction: `/api/home-sensors` intentionally uses Home Assistant's `/api/states/{entity_id}` endpoint and therefore returns one current value per sensor. Historical series use `/api/history/period/<start>`. There is not yet an API endpoint that exposes raw historical series, and the current frontend only displays the summary response.
@@ -175,9 +177,10 @@ All calculations must be deterministic and covered by tests.
 - Resolve calendar presets in `HOME_TIMEZONE`, including daylight-saving transitions; use half-open intervals `[start, end)`.
 - Resample noisy readings into configurable 15-minute bins. Use the mean for environmental values and time-weighted integration for power.
 - Calculate count, coverage, minimum, maximum, and mean for temperature and humidity.
-- Detect rises/drops from the smoothed series, not individual raw samples. A first PoC can compare a rolling baseline and emit an event only when a configurable absolute threshold is sustained for at least two bins.
-- Suggested starting thresholds are 1.5 °C for temperature, 8 percentage points for humidity, and a power-spike threshold appropriate to the home. Keep them in configuration, not scattered magic numbers.
-- Merge adjacent events of the same kind and cap the facts sent to the LLM to the most significant events.
+- Detect rises/drops from the smoothed series, not individual raw samples. Significant temperature and humidity swings use hysteresis around local extrema, with configured thresholds of 1.5 °C and 8 percentage points respectively. If a non-flat series never reaches its threshold, divide it into at most three rise/drop periods using its endpoints and overall low/high so a calm day's shape remains visible.
+- Temperature and humidity form independent event sequences. Their events can overlap each other, while events within one sensor sequence are consecutive and must not overlap.
+- Detect a power spike when a binned value is at least the configured threshold (initially 1000 W) above the median power for the selected interval.
+- Keep thresholds in configuration, not as scattered magic numbers, and cap the facts sent to the LLM/API to 20 chronologically sorted events.
 - Report insufficient coverage instead of inventing a conclusion.
 
 Do not ask the LLM to calculate statistics or discover events. It is a wording layer only.
@@ -223,7 +226,7 @@ At minimum, tests must cover:
 - today/yesterday/last-seven-day boundaries in the configured timezone;
 - a daylight-saving boundary;
 - unsorted, unavailable, sparse, and empty Home Assistant samples;
-- temperature/humidity rise and drop thresholds plus event merging;
+- temperature/humidity rise/drop extrema segmentation, threshold hysteresis, and calm-series fallback;
 - W-to-kWh integration or cumulative-kWh delta, whichever the configured fixture uses;
 - LLM success, timeout, malformed response, and deterministic fallback;
 - the summary endpoint with Home Assistant and LLM calls mocked.

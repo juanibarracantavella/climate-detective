@@ -40,9 +40,13 @@ function renderEvents(events) {
   list.replaceChildren(...events.map((event) => {
     const item = document.createElement("li");
     const title = event.kind.replaceAll("_", " ");
+    const eventPeriod = event.start === event.end
+      ? formatDate(event.start)
+      : `${formatDate(event.start)} – ${formatDate(event.end)}`;
     item.innerHTML = `<strong></strong><span></span>`;
     item.querySelector("strong").textContent = title.charAt(0).toUpperCase() + title.slice(1);
-    item.querySelector("span").textContent = `${formatNumber(Math.abs(event.change), ` ${event.unit}`)} · ${formatDate(event.start)}`;
+    item.querySelector("span").textContent =
+      `${formatNumber(Math.abs(event.change), ` ${event.unit}`)} · ${eventPeriod}`;
     return item;
   }));
 }

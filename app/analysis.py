@@ -4,6 +4,7 @@ import math
 import statistics
 from collections import defaultdict
 from datetime import datetime
+from itertools import combinations
 
 from app.config import Settings
 from app.models import AnalysisResult, Event, Period, Sample
@@ -117,49 +118,99 @@ def _environment_statistics(
     }
 
 
-def detect_changes(
-    samples: list[Sample], name: str, threshold: float, unit: str, min_bins: int = 2
-) -> list[Event]:
-    if len(samples) <= min_bins:
+def detect_changes(samples: list[Sample], name: str, threshold: float, unit: str) -> list[Event]:
+    if len(samples) < 2:
         return []
 
-    candidates: list[Event] = []
-    for index in range(min_bins, len(samples)):
-        start_sample = samples[index - min_bins]
-        end_sample = samples[index]
-        change = end_sample.value - start_sample.value
-        if abs(change) < threshold:
+    ordered = sorted(samples, key=lambda sample: sample.timestamp)
+    events: list[Event] = []
+
+    # Find the first meaningful swing from the minimum and maximum seen so far.
+    # After that, a change of at least `threshold` in the opposite direction
+    # confirms the current extreme and starts the next swing. This hysteresis
+    # suppresses small reversals while retaining each significant rise/drop.
+    minimum = maximum = ordered[0]
+    anchor: Sample | None = None
+    extreme: Sample | None = None
+    direction: str | None = None
+
+    for sample in ordered[1:]:
+        if direction is None:
+            if sample.value < minimum.value:
+                minimum = sample
+            if sample.value > maximum.value:
+                maximum = sample
+            if maximum.value - minimum.value < threshold:
+                continue
+            if minimum.timestamp < maximum.timestamp:
+                direction, anchor, extreme = "rise", minimum, maximum
+            else:
+                direction, anchor, extreme = "drop", maximum, minimum
             continue
-        direction = "rise" if change > 0 else "drop"
-        candidates.append(
-            Event(
-                kind=f"{name}_{direction}",
-                start=start_sample.timestamp,
-                end=end_sample.timestamp,
-                change=change,
-                unit=unit,
+
+        assert anchor is not None and extreme is not None
+        if direction == "rise":
+            if sample.value >= extreme.value:
+                extreme = sample
+            elif extreme.value - sample.value >= threshold:
+                events.append(_change_event(name, direction, anchor, extreme, unit))
+                direction, anchor, extreme = "drop", extreme, sample
+        elif sample.value <= extreme.value:
+            extreme = sample
+        elif sample.value - extreme.value >= threshold:
+            events.append(_change_event(name, direction, anchor, extreme, unit))
+            direction, anchor, extreme = "rise", extreme, sample
+
+    if direction is None:
+        return _extrema_events(ordered, name, unit)
+
+    assert anchor is not None and extreme is not None
+    events.append(_change_event(name, direction, anchor, extreme, unit))
+    return events
+
+
+def _change_event(name: str, direction: str, start: Sample, end: Sample, unit: str) -> Event:
+    return Event(
+        kind=f"{name}_{direction}",
+        start=start.timestamp,
+        end=end.timestamp,
+        change=end.value - start.value,
+        unit=unit,
+    )
+
+
+def _extrema_events(samples: list[Sample], name: str, unit: str) -> list[Event]:
+    """Split a calm series into at most three periods around its daily low and high."""
+    first, last = samples[0], samples[-1]
+    low = min(sample.value for sample in samples)
+    high = max(sample.value for sample in samples)
+    if low == high:
+        return []
+
+    candidates = [sample for sample in samples[1:-1] if sample.value == low or sample.value == high]
+    best_points = [first, last]
+    best_variation = abs(last.value - first.value)
+    for count in range(1, min(2, len(candidates)) + 1):
+        for selected in combinations(candidates, count):
+            points = [first, *selected, last]
+            variation = sum(
+                abs(end.value - start.value) for start, end in zip(points, points[1:], strict=False)
             )
+            if variation > best_variation:
+                best_points = points
+                best_variation = variation
+
+    return [
+        _change_event(
+            name,
+            "rise" if end.value > start.value else "drop",
+            start,
+            end,
+            unit,
         )
-    return merge_events(candidates)
-
-
-def merge_events(events: list[Event]) -> list[Event]:
-    merged: list[Event] = []
-    for event in events:
-        if merged and merged[-1].kind == event.kind and event.start <= merged[-1].end:
-            previous = merged[-1]
-            merged[-1] = Event(
-                kind=previous.kind,
-                start=previous.start,
-                end=max(previous.end, event.end),
-                change=previous.change
-                if abs(previous.change) >= abs(event.change)
-                else event.change,
-                unit=previous.unit,
-            )
-        else:
-            merged.append(event)
-    return merged
+        for start, end in zip(best_points, best_points[1:], strict=False)
+        if start.value != end.value
+    ]
 
 
 def detect_power_spikes(samples: list[Sample], threshold_w: float, unit: str) -> list[Event]:

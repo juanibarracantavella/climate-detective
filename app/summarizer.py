@@ -92,7 +92,7 @@ def fallback_summary(
         parts.append(f"estimated energy use was {energy:.2f} kWh")
     summary = ", and ".join(parts) + "." if parts else "No usable sensor data was found."
     if analysis.events:
-        summary += f" {len(analysis.events)} notable change(s) were detected."
+        summary += f" {len(analysis.events)} sensor event(s) were detected."
     if analysis.warnings:
         summary += " Some sensor data was missing or incomplete."
     return summary

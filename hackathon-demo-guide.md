@@ -223,7 +223,7 @@ If the warnings contain `Nebius is not configured` or `Nebius summary failed`, t
 
 1. **Problem:** Home Assistant stores useful telemetry, but raw time series are tedious to interpret.
 2. **Live data:** Show `/api/home-sensors` returning the seven real current readings.
-3. **Analysis:** Explain that Climate Detective requests historical temperature, humidity, and power data, bins it into 15-minute intervals, calculates statistics, integrates power into kWh, and detects sustained changes.
+3. **Analysis:** Explain that Climate Detective requests historical temperature, humidity, and power data, bins it into 15-minute intervals, calculates statistics, integrates power into kWh, and splits temperature and humidity into rise/drop periods. Significant swings use local turning points; calmer periods are divided around the overall low and high so their daily shape remains visible.
 4. **AI role:** Explain that only derived facts are sent to the LLM; the LLM does not calculate numbers or receive credentials.
 5. **Result:** Use the frontend to generate a summary for today and another period.
 6. **Safety:** The token remains in the backend `.env`, entities are allowlisted, and partial sensor failures do not break the entire snapshot.
