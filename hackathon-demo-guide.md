@@ -184,6 +184,16 @@ Point out these parts of the response:
 
 The statistics and events are calculated locally. The LLM is used only to translate those facts into friendlier wording.
 
+### Show the exact LLM prompt
+
+Display the OpenAI-compatible request body without making an inference call:
+
+```bash
+curl -sS "http://127.0.0.1:8000/api/summary-prompt?period=today" | jq
+```
+
+The system message constrains the model to the supplied facts. The user message is compact JSON containing only the resolved period, calculated statistics, detected events, and data-quality warnings—never the Home Assistant token or raw samples.
+
 ## 4. Demonstrate the frontend
 
 Open http://127.0.0.1:8000/ in a browser.

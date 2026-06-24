@@ -29,22 +29,7 @@ class Summarizer:
                 "Nebius is not configured; using local summary",
             )
 
-        facts = {
-            "period": {
-                "start": period.start.isoformat(),
-                "end": period.end.isoformat(),
-            },
-            **analysis.facts(),
-        }
-        payload = {
-            "model": self.settings.nebius_model,
-            "temperature": 0.1,
-            "max_tokens": 220,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": json.dumps(facts, separators=(",", ":"))},
-            ],
-        }
+        payload = build_chat_payload(period, analysis, self.settings)
         headers = {"Authorization": f"Bearer {self.settings.nebius_api_key}"}
         url = f"{self.settings.nebius_base_url}/chat/completions"
         try:
@@ -65,6 +50,29 @@ class Summarizer:
                 ),
                 "Nebius summary failed; using local summary",
             )
+
+
+def build_chat_payload(
+    period: Period, analysis: AnalysisResult, settings: Settings
+) -> dict[str, Any]:
+    """Build the exact JSON body sent to the OpenAI-compatible endpoint."""
+    facts = {
+        "period": {
+            "start": period.start.isoformat(),
+            "end": period.end.isoformat(),
+        },
+        **analysis.facts(),
+    }
+    return {
+        "model": settings.nebius_model,
+        "temperature": 0.1,
+        "max_tokens": 220,
+        "chat_template_kwargs": {"enable_thinking": False},
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": json.dumps(facts, separators=(",", ":"))},
+        ],
+    }
 
 
 def _extract_content(payload: Any) -> str:

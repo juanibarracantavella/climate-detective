@@ -57,11 +57,14 @@ All tests use synthetic sensor readings and mocked integrations; they do not con
 GET /api/summary?period=today
 GET /api/summary?period=yesterday
 GET /api/summary?period=last_7_days
+GET /api/summary-prompt?period=today
 GET /api/home-sensors
 GET /api/health
 ```
 
 `GET /api/home-sensors` reads the seven configured current-state entities directly from Home Assistant. Each item contains the normalized numeric `value`, original `raw_state`, unit, friendly name, timestamps, and a per-sensor `error`. A failed entity does not prevent the remaining readings from being returned.
+
+`GET /api/summary-prompt` returns the exact OpenAI-compatible JSON request body that the summarizer would send for the selected period, without calling Nebius. It contains only the locally derived facts and no credentials or raw sensor samples.
 
 See [AGENTS.md](AGENTS.md) for design constraints, security guidance, and the intended PoC scope.
 

@@ -1,11 +1,12 @@
 import asyncio
+import json
 from datetime import UTC, datetime, timedelta
 
 import httpx
 
 from app.config import Settings
 from app.models import AnalysisResult, Period
-from app.summarizer import Summarizer
+from app.summarizer import Summarizer, build_chat_payload
 
 
 def test_summarizer_reads_openai_compatible_response() -> None:
@@ -55,3 +56,22 @@ def test_missing_key_uses_fallback_without_network_request() -> None:
 
     assert "21.0 °C" in summary
     assert warning == "Nebius is not configured; using local summary"
+
+
+def test_chat_payload_contains_only_derived_facts() -> None:
+    settings = Settings(nebius_model="demo-model")
+    start = datetime(2026, 6, 24, tzinfo=UTC)
+    period = Period("today", start, start + timedelta(hours=1))
+    analysis = AnalysisResult(
+        statistics={"temperature_mean": 21.0},
+        events=[],
+        warnings=["Humidity coverage is insufficient"],
+    )
+
+    payload = build_chat_payload(period, analysis, settings)
+    facts = json.loads(payload["messages"][1]["content"])
+
+    assert payload["model"] == "demo-model"
+    assert payload["chat_template_kwargs"] == {"enable_thinking": False}
+    assert facts["period"]["start"] == "2026-06-24T00:00:00+00:00"
+    assert facts["warnings"] == ["Humidity coverage is insufficient"]

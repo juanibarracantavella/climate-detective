@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import timedelta
 
 import httpx
@@ -21,7 +22,11 @@ class FakeHistory:
 
 
 class FakeSummarizer:
+    def __init__(self) -> None:
+        self.calls = 0
+
     async def summarize(self, period: Period, analysis: AnalysisResult) -> tuple[str, str | None]:
+        self.calls += 1
         return "Synthetic summary.", None
 
 
@@ -77,6 +82,32 @@ def test_summary_endpoint_rejects_unknown_period() -> None:
 
     assert response.status_code == 422
     assert "Unknown period" in response.json()["detail"]
+
+
+def test_summary_prompt_endpoint_returns_exact_llm_body_without_inference() -> None:
+    settings = Settings(
+        temperature_entity="sensor.temperature",
+        humidity_entity="sensor.humidity",
+        power_entity="sensor.power",
+        nebius_model="demo-model",
+    )
+    summarizer = FakeSummarizer()
+    app = create_app(settings, FakeHistory(), summarizer)
+
+    response = asyncio.run(get(app, "/api/summary-prompt", period="today"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["model"] == "demo-model"
+    assert payload["temperature"] == 0.1
+    assert payload["max_tokens"] == 220
+    assert payload["chat_template_kwargs"] == {"enable_thinking": False}
+    assert payload["messages"][0]["role"] == "system"
+    facts = json.loads(payload["messages"][1]["content"])
+    assert facts["statistics"]["temperature_mean"] == 20.0
+    assert facts["period"]["start"]
+    assert "summary" not in payload
+    assert summarizer.calls == 0
 
 
 def test_home_sensors_endpoint_returns_successes_and_errors() -> None:

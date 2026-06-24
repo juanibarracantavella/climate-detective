@@ -14,7 +14,7 @@ from app.config import Settings
 from app.home_assistant import HomeAssistantClient, HomeAssistantError
 from app.models import AnalysisResult, Period, Sample
 from app.periods import resolve_period
-from app.summarizer import Summarizer
+from app.summarizer import Summarizer, build_chat_payload
 
 
 class HistorySource(Protocol):
@@ -122,6 +122,24 @@ def create_app(
             value=response,
         )
         return response
+
+    @application.get("/api/summary-prompt")
+    async def summary_prompt(
+        period: str = Query(default="today", description="Calendar period preset"),
+    ) -> dict[str, Any]:
+        """Return the exact LLM request body without invoking the LLM."""
+        try:
+            resolved_period = resolve_period(period, resolved_settings.timezone())
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        try:
+            history = await home_assistant.history(resolved_period)
+        except HomeAssistantError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+        result = analyze(history, resolved_period, resolved_settings)
+        return build_chat_payload(resolved_period, result, resolved_settings)
 
     static_directory = Path(__file__).resolve().parent.parent / "static"
     application.mount("/", StaticFiles(directory=static_directory, html=True), name="static")
