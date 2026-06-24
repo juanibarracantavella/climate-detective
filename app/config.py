@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+NebiusProfile = Literal["strong", "fast"]
+
 HOME_SENSOR_ENTITY_IDS = (
     "sensor.meteo_aqara_balcony_temperature",
     "sensor.meteo_aqara_balcony_humidity",
@@ -33,6 +35,7 @@ class Settings:
     humidity_unit: str = "%"
     power_unit: str = "W"
     home_timezone: str = "UTC"
+    nebius_profile: NebiusProfile = "strong"
     nebius_base_url: str = "http://127.0.0.1:8000/v1"
     nebius_api_key: str = ""
     nebius_model: str = "Qwen/Qwen3-0.6B"
@@ -50,6 +53,19 @@ class Settings:
         if power_kind not in {"power", "energy"}:
             raise ConfigurationError("HA_POWER_KIND must be 'power' or 'energy'")
 
+        nebius_profile = os.getenv("NEBIUS_PROFILE", "strong").lower()
+        if nebius_profile not in {"strong", "fast"}:
+            raise ConfigurationError("NEBIUS_PROFILE must be 'strong' or 'fast'")
+        nebius_prefix = f"NEBIUS_{nebius_profile.upper()}_"
+        nebius_base_url = os.getenv(
+            f"{nebius_prefix}BASE_URL",
+            os.getenv("NEBIUS_BASE_URL", "http://127.0.0.1:8000/v1"),
+        )
+        nebius_api_key = os.getenv(f"{nebius_prefix}API_KEY", os.getenv("NEBIUS_API_KEY", ""))
+        nebius_model = os.getenv(
+            f"{nebius_prefix}MODEL", os.getenv("NEBIUS_MODEL", "Qwen/Qwen3-0.6B")
+        )
+
         settings = cls(
             ha_base_url=os.getenv("HA_BASE_URL", "https://home.cosasdejuan.es").rstrip("/"),
             ha_token=os.getenv("HA_TOKEN", ""),
@@ -63,9 +79,10 @@ class Settings:
             humidity_unit=os.getenv("HA_HUMIDITY_UNIT", "%"),
             power_unit=os.getenv("HA_POWER_UNIT", "W"),
             home_timezone=os.getenv("HOME_TIMEZONE", "UTC"),
-            nebius_base_url=os.getenv("NEBIUS_BASE_URL", "http://127.0.0.1:8000/v1").rstrip("/"),
-            nebius_api_key=os.getenv("NEBIUS_API_KEY", ""),
-            nebius_model=os.getenv("NEBIUS_MODEL", "Qwen/Qwen3-0.6B"),
+            nebius_profile=nebius_profile,  # type: ignore[arg-type]
+            nebius_base_url=_openai_base_url(nebius_base_url),
+            nebius_api_key=nebius_api_key,
+            nebius_model=nebius_model,
         )
         settings.timezone()
         return settings
@@ -79,3 +96,8 @@ class Settings:
     @property
     def entity_ids(self) -> tuple[str, str, str]:
         return self.temperature_entity, self.humidity_entity, self.power_entity
+
+
+def _openai_base_url(url: str) -> str:
+    base_url = url.rstrip("/")
+    return base_url if base_url.endswith("/v1") else f"{base_url}/v1"

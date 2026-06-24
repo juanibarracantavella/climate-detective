@@ -1,5 +1,4 @@
 import asyncio
-import json
 from datetime import timedelta
 
 import httpx
@@ -100,12 +99,12 @@ def test_summary_prompt_endpoint_returns_exact_llm_body_without_inference() -> N
     payload = response.json()
     assert payload["model"] == "demo-model"
     assert payload["temperature"] == 0.1
-    assert payload["max_tokens"] == 220
+    assert payload["max_tokens"] == 450
     assert payload["chat_template_kwargs"] == {"enable_thinking": False}
     assert payload["messages"][0]["role"] == "system"
-    facts = json.loads(payload["messages"][1]["content"])
-    assert facts["statistics"]["temperature_mean"] == 20.0
-    assert facts["period"]["start"]
+    facts = payload["messages"][1]["content"]
+    assert "MEASUREMENT: Temperature mean 20 °C" in facts
+    assert "PERIOD:" in facts
     assert "summary" not in payload
     assert summarizer.calls == 0
 

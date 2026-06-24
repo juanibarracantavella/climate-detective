@@ -31,15 +31,25 @@ For the safest demo, run this application on the same private network as Home As
 
 ## Nebius model endpoint
 
-Climate Detective expects an OpenAI-compatible endpoint ending in `/v1`. The Nebius Serverless AI vLLM tutorial provides that interface. Configure:
+Climate Detective supports two named OpenAI-compatible Nebius endpoints. Select one profile and
+configure both profiles independently:
 
 ```dotenv
-NEBIUS_BASE_URL=http://<endpoint-address>/v1
-NEBIUS_API_KEY=<endpoint-token>
-NEBIUS_MODEL=Qwen/Qwen3-0.6B
+NEBIUS_PROFILE=strong
+
+NEBIUS_FAST_BASE_URL=http://<fast-endpoint-address>/v1
+NEBIUS_FAST_API_KEY=<fast-endpoint-token>
+NEBIUS_FAST_MODEL=Qwen/Qwen3-0.6B
+
+NEBIUS_STRONG_BASE_URL=http://<strong-endpoint-address>/v1
+NEBIUS_STRONG_API_KEY=<strong-endpoint-token>
+NEBIUS_STRONG_MODEL=Qwen/Qwen2.5-7B-Instruct
 ```
 
-Without `NEBIUS_API_KEY`, the app deliberately uses its deterministic fallback summary. Stop or delete the Nebius endpoint when the demo is over to avoid continued compute charges.
+Set `NEBIUS_PROFILE=fast` to switch back without moving credentials. The app automatically appends
+`/v1` when it is omitted. If the selected profile has no API key or model, the app deliberately uses
+its deterministic fallback summary. Stop or delete Nebius endpoints when the demo is over to avoid
+continued compute charges.
 
 ## Checks
 

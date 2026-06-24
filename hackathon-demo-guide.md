@@ -14,7 +14,9 @@ HA_TOKEN=<your long-lived access token>
 HOME_TIMEZONE=<your IANA timezone, for example Europe/Madrid>
 ```
 
-If a Nebius endpoint is ready, also configure `NEBIUS_BASE_URL`, `NEBIUS_API_KEY`, and `NEBIUS_MODEL`. Otherwise, Climate Detective will use its deterministic local summary, which is a valid fallback for the demo.
+If a Nebius endpoint is ready, set `NEBIUS_PROFILE` to `strong` or `fast` and configure that
+profile's `BASE_URL`, `API_KEY`, and `MODEL` variables. Otherwise, Climate Detective will use its
+deterministic local summary, which is a valid fallback for the demo.
 
 Install and verify the application once before presenting:
 
@@ -192,7 +194,7 @@ Display the OpenAI-compatible request body without making an inference call:
 curl -sS "http://127.0.0.1:8000/api/summary-prompt?period=today" | jq
 ```
 
-The system message constrains the model to the supplied facts. The user message is compact JSON containing only the resolved period, calculated statistics, detected events, and data-quality warnings—never the Home Assistant token or raw samples.
+The system message constrains the model to the supplied facts. The user message contains compact, labeled fact lines for the resolved period, calculated statistics, detected events, and data-quality warnings—never the Home Assistant token or raw samples.
 
 ## 4. Demonstrate the frontend
 
@@ -215,10 +217,13 @@ Only do this if the Nebius environment variables are configured. Do not show the
 
 ```bash
 curl -sS \
-  -H "Authorization: Bearer ${NEBIUS_API_KEY}" \
-  "${NEBIUS_BASE_URL}/models" \
+  -H "Authorization: Bearer ${NEBIUS_STRONG_API_KEY}" \
+  "${NEBIUS_STRONG_BASE_URL%/}/models" \
   | jq '.data[] | {id}'
 ```
+
+The example probes the `strong` profile. Substitute `FAST` for `STRONG` when
+`NEBIUS_PROFILE=fast`.
 
 Then call the Climate Detective summary endpoint and inspect `warnings`:
 
