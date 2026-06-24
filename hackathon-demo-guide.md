@@ -269,6 +269,10 @@ The current endpoint and history endpoint are different. Confirm that Home Assis
 
 ### Summary mentions a local fallback
 
+If the selected Nebius URL returns `502 Bad Gateway`, confirm that its exposed port matches the
+vLLM `--port` argument. A `port8080-...` URL must reach a server listening on port 8080; either start
+vLLM with `--port 8080` or expose its port 8000 listener and use the generated `port8000-...` URL.
+
 Configure the three Nebius variables and restart the backend. Until then, the deterministic fallback is expected.
 
 ### Port 8000 is already in use

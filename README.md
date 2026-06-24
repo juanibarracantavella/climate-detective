@@ -51,6 +51,20 @@ Set `NEBIUS_PROFILE=fast` to switch back without moving credentials. The app aut
 its deterministic fallback summary. Stop or delete Nebius endpoints when the demo is over to avoid
 continued compute charges.
 
+The port exposed by the Nebius endpoint must match the port passed to vLLM. For example, a public
+URL beginning with `https://port8080-...` requires vLLM to listen on port 8080:
+
+```bash
+python3 -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --host 0.0.0.0 \
+  --port 8080 \
+  --max-model-len 32768
+```
+
+If vLLM instead listens on port 8000, expose port 8000 and use the resulting `port8000-...` URL.
+A mismatch commonly appears as `502 Bad Gateway` because the endpoint cannot reach vLLM.
+
 ## Checks
 
 ```bash
